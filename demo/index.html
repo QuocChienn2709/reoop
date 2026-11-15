@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPA Reader · app 3105</title>
+<script type="importmap">
+{ "imports": { "jszip": "https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm" } }
+</script>
+<style>
+:root {
+  --bg: #0b0d14; --text: #eef1ff; --muted: #8e96b8;
+  --card: rgba(255,255,255,.06); --border: rgba(255,255,255,.12);
+  --a: #5b8cff; --b: #7c5cff; --ok: #3ddc97; --bad: #ff6b81;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg:#eef1fb; --text:#161a2e; --muted:#5c6486; --card:rgba(255,255,255,.62); --border:rgba(20,30,80,.12); }
+}
+:root[data-theme="dark"]  { --bg:#0b0d14; --text:#eef1ff; --muted:#8e96b8; --card:rgba(255,255,255,.06); --border:rgba(255,255,255,.12); }
+:root[data-theme="light"] { --bg:#eef1fb; --text:#161a2e; --muted:#5c6486; --card:rgba(255,255,255,.62); --border:rgba(20,30,80,.12); }
+* { box-sizing: border-box; }
+body { margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+  font-family: -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif; overflow-x:hidden; }
+.orb { position:fixed; border-radius:50%; filter:blur(90px); opacity:.45; z-index:0; pointer-events:none; animation:float 18s ease-in-out infinite; }
+.orb.o1 { width:420px; height:420px; background:var(--a); top:-120px; left:-100px; }
+.orb.o2 { width:380px; height:380px; background:var(--b); bottom:-120px; right:-80px; animation-delay:-8s; }
+@keyframes float { 50% { transform: translate(40px,30px) scale(1.08); } }
+nav { position:sticky; top:14px; z-index:5; margin:14px auto 0; width:fit-content; max-width:92vw;
+  display:flex; gap:14px; align-items:center; padding:9px 18px; border-radius:999px;
+  background:var(--card); border:1px solid var(--border); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); }
+nav b { background:linear-gradient(90deg,var(--a),var(--b)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+nav button { all:unset; cursor:pointer; color:var(--muted); font-size:13px; }
+main { position:relative; z-index:1; max-width:880px; margin:28px auto 80px; padding:0 16px; display:grid; gap:16px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:20px;
+  backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); }
+h1 { margin:0 0 4px; font-size:26px; }
+h2 { margin:0 0 12px; font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+p.sub { margin:0; color:var(--muted); font-size:14px; }
+#drop { text-align:center; padding:42px 20px; border:1.5px dashed var(--border); cursor:pointer; transition:.2s; }
+#drop.over { border-color:var(--a); transform:scale(1.01); }
+#drop strong { background:linear-gradient(90deg,var(--a),var(--b)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+dl { display:grid; grid-template-columns:150px 1fr; gap:8px 14px; margin:0; font-size:14px; }
+dt { color:var(--muted); } dd { margin:0; font-family:var(--mono); font-size:13px; word-break:break-all; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chip { font-family:var(--mono); font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--border); background:rgba(127,127,127,.1); }
+.chip.ok { color:var(--ok); } .chip.bad { color:var(--bad); }
+.hero { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+.badge { width:64px; height:64px; border-radius:16px; display:grid; place-items:center; font-size:26px; font-weight:700; color:#fff;
+  background:linear-gradient(135deg,var(--a),var(--b)); }
+pre { margin:0; max-height:320px; overflow:auto; font-family:var(--mono); font-size:12px; color:var(--muted); }
+.err { color:var(--bad); font-size:14px; }
+[hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<div class="orb o1"></div><div class="orb o2"></div>
+<nav><b>@quocchienn</b><span style="color:var(--muted);font-size:13px">IPA Reader · app 3105</span>
+  <button id="theme" title="Đổi giao diện">◐</button></nav>
+
+<main>
+  <section class="card">
+    <h1>Đọc dữ liệu gói thật</h1>
+    <p class="sub">Thả file .ipa vào đây — thông tin được đọc trực tiếp từ Info.plist và embedded.mobileprovision ngay trên trình duyệt, không upload đi đâu.</p>
+  </section>
+
+  <label id="drop" class="card">
+    <input id="file" type="file" accept=".ipa,.zip" hidden>
+    <strong>Chọn file .ipa</strong> hoặc kéo thả vào đây
+  </label>
+
+  <p id="err" class="err" hidden></p>
+
+  <div id="out" hidden style="display:grid;gap:16px"></div>
+</main>
+
+<script type="module">
+import { readIpa } from '../src/index.js';
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '—').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const chips = (arr, cls = '') => arr?.length ? `<div class="chips">${arr.map((x) => `<span class="chip ${cls}">${esc(x)}</span>`).join('')}</div>` : '—';
+const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+
+$('#theme').onclick = () => {
+  const r = document.documentElement;
+  const dark = (r.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+  r.dataset.theme = dark ? 'light' : 'dark';
+};
+
+function render(r) {
+  const p = r.provision;
+  $('#out').innerHTML = `
+  <section class="card hero">
+    <div class="badge">${esc((r.name || '?')[0])}</div>
+    <div><h1 style="font-size:22px">${esc(r.name)}</h1>
+      <div class="chips"><span class="chip">${esc(r.bundleId)}</span><span class="chip">v${esc(r.version)} (${esc(r.build)})</span>
+      <span class="chip">${(r.fileSize / 1048576).toFixed(2)} MB</span></div></div>
+  </section>
+  <section class="card"><h2>Thông tin chung</h2><dl>
+    ${row('Tệp thực thi', esc(r.executable))}
+    ${row('iOS tối thiểu', esc(r.minOS))}
+    ${row('Thiết bị', chips(r.deviceFamily))}
+    ${row('SDK / Xcode', esc(`${r.sdk.name ?? ''} · Xcode ${r.sdk.xcode ?? '?'}`))}
+    ${row('Ngôn ngữ', chips(r.localizations))}
+    ${row('URL scheme', chips(r.urlSchemes))}
+    ${row('Chạy nền', chips(r.backgroundModes))}
+  </dl></section>
+  ${p ? `<section class="card"><h2>Provisioning</h2><dl>
+    ${row('Loại', `<span class="chip">${esc(p.type)}</span>`)}
+    ${row('Profile', esc(p.name))}
+    ${row('Team', esc(`${p.teamName} (${p.teamId})`))}
+    ${row('Hết hạn', `${esc(p.expiresAt)} <span class="chip ${p.expired ? 'bad' : 'ok'}">${p.expired ? 'đã hết hạn' : 'còn hiệu lực'}</span>`)}
+    ${row('Số thiết bị', esc(p.deviceCount))}
+  </dl></section>` : ''}
+  <section class="card"><h2>Quyền (${r.permissions.length})</h2>
+    <dl>${r.permissions.map((x) => row(esc(x.key.replace(/^NS|UsageDescription$/g, '')), esc(x.description))).join('') || '<dd>—</dd>'}</dl></section>
+  <section class="card"><h2>Extension (${r.extensions.length}) · Framework (${r.frameworks.length})</h2>
+    ${chips(r.extensions.map((e) => e.bundleId || e.name))}<div style="height:10px"></div>${chips(r.frameworks)}</section>
+  <section class="card"><h2>Info.plist gốc</h2>
+    <pre>${esc(JSON.stringify(r.infoPlist, (_, v) => v instanceof Uint8Array ? `<data ${v.length}B>` : v, 2))}</pre></section>`;
+  $('#out').hidden = false;
+}
+
+async function handle(file) {
+  $('#err').hidden = true; $('#out').hidden = true;
+  try {
+    const result = await readIpa(file);
+    render(result);
+    // Điểm tích hợp cho app 3105: nhận kết quả ngay sau khi upload
+    window.dispatchEvent(new CustomEvent('ipa:parsed', { detail: result }));
+  } catch (e) {
+    $('#err').textContent = 'Không đọc được file: ' + e.message;
+    $('#err').hidden = false;
+  }
+}
+
+const drop = $('#drop'), input = $('#file');
+input.onchange = () => input.files[0] && handle(input.files[0]);
+['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => e.dataTransfer.files[0] && handle(e.dataTransfer.files[0]));
+</script>
+</body>
+</html>

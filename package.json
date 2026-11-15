@@ -1,0 +1,26 @@
+{
+  "name": "app-3105-package-reader",
+  "version": "1.0.0",
+  "description": "Tự động đọc dữ liệu gói thật (Info.plist, provisioning, quyền, extension...) từ file .ipa khi upload — dùng cho app 3105",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./plist": "./src/plist.js"
+  },
+  "bin": {
+    "read-ipa": "bin/cli.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "demo": "npx --yes serve . -l 3105"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  },
+  "keywords": ["ipa", "plist", "ios", "package", "parser"],
+  "license": "MIT"
+}
